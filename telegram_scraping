@@ -1,0 +1,49 @@
+import json
+import pandas as pd
+from datetime import datetime
+from telethon.sync import TelegramClient
+from telethon.errors.rpcerrorlist import PeerIdInvalidError
+
+with open('config.json') as config_file:
+    config = json.load(config_file)
+    api_id = config['api_id']
+    api_hash = config['api_hash']
+
+session_name = 'sua_sessao'
+
+termo_pesquisa = 'java'
+
+client = TelegramClient(session_name, api_id, api_hash)
+
+
+async def main():
+    ocorrencias = []
+    try:
+        await client.start()
+
+        async for dialog in client.iter_dialogs():
+            if dialog.is_group:
+                try:
+                    async for message in client.iter_messages(dialog):
+                        if message.text:
+                            if termo_pesquisa.lower() in message.text.lower():
+                                ocorrencias.append({
+                                    'Chat': dialog.title,
+                                    'ID do usuário': message.sender_id,
+                                    'Hora': message.date.strftime('%Y-%m-%d %H:%M:%S'),
+                                    'Mensagem': message.text
+                                })
+                except PeerIdInvalidError:
+                    print(f"O chat '{dialog.title}' não está mais disponível.")
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+    finally:
+        await client.disconnect()
+
+    df = pd.DataFrame(ocorrencias)
+
+    df.to_csv('ocorrencias2.csv', index=False)
+
+
+with client:
+    client.loop.run_until_complete(main())
